@@ -1,0 +1,188 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #080e1a;
+  color: #f1f5f9;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+}
+
+/* Scrollbar ẩn nhưng vẫn scroll được */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@layer components {
+  /* Card chuẩn */
+  .card {
+    @apply bg-[#111827] rounded-2xl p-4 border border-white/[0.06];
+  }
+
+  /* Card có hiệu ứng glow nhẹ */
+  .card-glow {
+    @apply bg-[#111827] rounded-2xl p-4 border border-white/[0.06] shadow-[0_0_40px_-10px_rgba(16,185,129,0.15)];
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full bg-[#0d1424] border border-white/10 rounded-xl px-4 py-3 text-white
+           placeholder-slate-600 focus:outline-none focus:border-emerald-500/50
+           focus:ring-1 focus:ring-emerald-500/20 transition-all duration-200;
+  }
+
+  /* Button primary */
+  .btn-primary {
+    @apply w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl
+           font-semibold text-sm active:scale-[0.98] transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_20px_rgba(16,185,129,0.3)];
+  }
+
+  /* Button danger */
+  .btn-danger {
+    @apply w-full py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400
+           border border-rose-500/30 rounded-xl font-semibold text-sm
+           active:scale-[0.98] transition-all duration-150;
+  }
+
+  /* Tab selector */
+  .tab-bar {
+    @apply flex bg-[#0d1424] rounded-xl p-1 border border-white/[0.06];
+  }
+
+  .tab-item {
+    @apply flex-1 py-2 text-sm font-medium transition-all duration-200 rounded-lg text-slate-500;
+  }
+
+  .tab-item-active {
+    @apply bg-[#1a2535] text-white shadow-sm;
+  }
+
+  /* Pill badge */
+  .badge {
+    @apply text-[10px] font-medium px-2 py-0.5 rounded-full;
+  }
+
+  /* Số tiền lớn */
+  .amount-display {
+    @apply font-mono tracking-tight;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-white/[0.06];
+  }
+
+  /* Section label kiểu iOS */
+  .section-label {
+    @apply text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-1 mb-2;
+  }
+}
+
+@layer utilities {
+  /* Gradient text */
+  .text-gradient-income {
+    @apply text-transparent bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text;
+  }
+
+  .text-gradient-expense {
+    @apply text-transparent bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text;
+  }
+
+  /* Hiệu ứng rung khi sai PIN */
+  .shake {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  /* Glow cho nút FAB */
+  .fab-glow {
+    box-shadow:
+      0 4px 24px rgba(16, 185, 129, 0.4),
+      0 0 0 1px rgba(16, 185, 129, 0.2);
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(17, 24, 39, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-6px);
+  }
+  40%,
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.8;
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.3s ease-out forwards;
+}
+
+/* ════════════════════════════════════════════════════════════
+   PATCH BỔ SUNG — chỉ cần thêm đoạn này vào CUỐI file index.css
+   hiện tại của bạn. Không cần xóa gì cả.
+   ════════════════════════════════════════════════════════════ */
+
+/* Ẩn scrollbar cho thanh cuộn ngang (dùng trong Ghi nhanh ở Dashboard) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
