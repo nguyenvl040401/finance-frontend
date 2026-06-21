@@ -137,8 +137,6 @@ export default function PinScreen() {
           );
         })}
       </div>
-
-      <p className="mt-10 text-xs text-slate-700">PIN mặc định: 441003</p>
     </div>
   );
 }
