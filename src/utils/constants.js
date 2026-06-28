@@ -131,18 +131,7 @@ export const CATEGORY_EMOJIS = [
 ];
 
 // ── Avatar emoji cho tính năng cá nhân hóa (#11) ─────────────────────────────
-export const AVATAR_EMOJIS = [
-  "💰",
-  "🧑‍💻",
-  "👩‍💼",
-  "🧑‍🎓",
-  "🦊",
-  "🐼",
-  "🌟",
-  "🎯",
-  "🚀",
-  "💎",
-];
+export const AVATAR_EMOJIS = ["🧑‍💻", "🐼", "🌟", "🚀", "💎"];
 
 // ── Tháng labels — khớp với byMonth trong ReportController + Reports.jsx ─────
 export const MONTH_LABELS = [
