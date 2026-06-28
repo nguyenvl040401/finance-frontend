@@ -4,57 +4,7 @@ import Modal from "../components/ui/Modal";
 import AmountInput from "../components/ui/AmountInput";
 import { formatVND } from "../utils/currency";
 import { currentMonthYear } from "../utils/dateUtils";
-
-const COLOR_PALETTE = [
-  "#10B981",
-  "#F43F5E",
-  "#3B82F6",
-  "#F59E0B",
-  "#8B5CF6",
-  "#06B6D4",
-  "#EC4899",
-  "#F97316",
-  "#EAB308",
-  "#6B7280",
-  "#14B8A6",
-  "#84CC16",
-  "#A855F7",
-  "#EF4444",
-  "#0EA5E9",
-];
-
-const EMOJI_LIST = [
-  "🍜",
-  "🍕",
-  "🚗",
-  "🚌",
-  "🏠",
-  "🛍️",
-  "🎮",
-  "💊",
-  "📚",
-  "💼",
-  "🎁",
-  "📈",
-  "🔧",
-  "💵",
-  "💰",
-  "✈️",
-  "🎵",
-  "☕",
-  "🏋️",
-  "🐾",
-  "👗",
-  "💻",
-  "🎓",
-  "🏥",
-  "🌿",
-  "🎯",
-  "🍺",
-  "🛒",
-  "📦",
-  "💳",
-];
+import { CATEGORY_COLORS, CATEGORY_EMOJIS } from "../utils/constants";
 
 export default function Categories() {
   const { month, year } = currentMonthYear();
@@ -113,6 +63,8 @@ export default function Categories() {
   };
 
   const deleteBudget = async (budgetId) => {
+    // FIX: thêm confirm trước khi xóa ngân sách — nhất quán với deleteCat
+    if (!confirm("Xóa ngân sách này?")) return;
     await api.delete(`/budgets/${budgetId}`);
     loadAll();
   };
@@ -224,7 +176,6 @@ export default function Categories() {
   );
 }
 
-// Tổng quan ngân sách tháng
 function BudgetSummary({ budgets }) {
   const withData = budgets.filter((b) => b.budget);
   const total = withData.reduce((s, b) => s + (b.budget?.amount ?? 0), 0);
@@ -270,7 +221,6 @@ function BudgetSummary({ budgets }) {
   );
 }
 
-// Card danh mục — FIX: hiển thị rõ ràng "Đã chi / Hạn mức" có nhãn, không còn mơ hồ như ảnh lỗi
 function CategoryCard({
   cat,
   budget,
@@ -295,7 +245,6 @@ function CategoryCard({
         >
           {cat.icon}
         </div>
-
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-white">{cat.name}</p>
@@ -310,8 +259,6 @@ function CategoryCard({
               </span>
             )}
           </div>
-
-          {/* FIX: thêm nhãn rõ ràng "Đã chi" và "Hạn mức" thay vì chỉ ghi "1.200.000 ₫ / 0 ₫" mơ hồ */}
           {budget ? (
             <div className="flex flex-wrap items-center gap-1 mt-1">
               <span
@@ -412,13 +359,7 @@ function CategoryCard({
         <div className="mt-3 pt-3 border-t border-white/[0.04]">
           <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                isOver
-                  ? "bg-rose-500"
-                  : isWarn
-                    ? "bg-amber-400"
-                    : "bg-emerald-500"
-              }`}
+              className={`h-full rounded-full transition-all duration-700 ${isOver ? "bg-rose-500" : isWarn ? "bg-amber-400" : "bg-emerald-500"}`}
               style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
@@ -438,7 +379,6 @@ function CategoryCard({
   );
 }
 
-// Form thêm/sửa danh mục
 function CategoryForm({ initialData, defaultType, onSaved }) {
   const [name, setName] = useState(initialData?.name ?? "");
   const [icon, setIcon] = useState(initialData?.icon ?? "📦");
@@ -502,7 +442,7 @@ function CategoryForm({ initialData, defaultType, onSaved }) {
           Icon — <span className="text-xl">{icon}</span>
         </p>
         <div className="grid grid-cols-10 gap-1.5 bg-[#0d1424] rounded-xl p-2">
-          {EMOJI_LIST.map((e) => (
+          {CATEGORY_EMOJIS.map((e) => (
             <button
               key={e}
               onClick={() => setIcon(e)}
@@ -521,7 +461,7 @@ function CategoryForm({ initialData, defaultType, onSaved }) {
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Màu sắc</p>
         <div className="flex flex-wrap gap-2">
-          {COLOR_PALETTE.map((c) => (
+          {CATEGORY_COLORS.map((c) => (
             <button
               key={c}
               onClick={() => setColor(c)}
@@ -538,7 +478,6 @@ function CategoryForm({ initialData, defaultType, onSaved }) {
 
       {error && <p className="text-sm text-rose-400">{error}</p>}
 
-      {/* Nút lưu — nằm trong vùng cuộn của Modal nên luôn truy cập được */}
       <button onClick={handleSubmit} disabled={saving} className="btn-primary">
         {saving ? "Đang lưu..." : initialData ? "Cập nhật" : "Thêm danh mục"}
       </button>
@@ -546,7 +485,6 @@ function CategoryForm({ initialData, defaultType, onSaved }) {
   );
 }
 
-// Form đặt ngân sách — FIX: dùng AmountInput có format khi gõ + nút tăng giảm
 function BudgetForm({ category, month, year, existing, onSaved }) {
   const [amount, setAmount] = useState(existing?.amount ?? 0);
   const [currency, setCurrency] = useState(existing?.currency ?? "VND");
@@ -581,7 +519,6 @@ function BudgetForm({ category, month, year, existing, onSaved }) {
         <strong className="text-white">{category?.name}</strong> tháng {month}/
         {year}
       </p>
-
       <div className="flex items-center gap-3">
         <p className="text-xs text-slate-500">Đơn vị:</p>
         <div className="flex bg-[#0d1424] rounded-full p-0.5 border border-white/[0.06]">
@@ -600,13 +537,8 @@ function BudgetForm({ category, month, year, existing, onSaved }) {
           ))}
         </div>
       </div>
-
-      {/* FIX: AmountInput tự format số khi gõ (100000 → 100.000) + nút tăng/giảm nhỏ gọn */}
       <AmountInput value={amount} onChange={setAmount} currency={currency} />
-
       {error && <p className="text-sm text-rose-400">{error}</p>}
-
-      {/* Nút lưu — luôn nằm trong vùng cuộn nội dung Modal, không bị Bottom Nav che nữa */}
       <button onClick={handleSubmit} disabled={saving} className="btn-primary">
         {saving
           ? "Đang lưu..."

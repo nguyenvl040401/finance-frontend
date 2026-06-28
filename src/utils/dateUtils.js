@@ -4,15 +4,12 @@ import api from "../api/axios";
 
 dayjs.locale("vi");
 
-// Mốc bắt đầu thống kê — lấy từ API, cache lại trong session để khỏi gọi nhiều lần
-// Mặc định fallback = tháng hiện tại nếu chưa load được từ server
 let _statsStart = {
   month: dayjs().month() + 1,
   year: dayjs().year(),
   loaded: false,
 };
 
-// Gọi 1 lần khi app khởi động (App.jsx sẽ gọi hàm này sau khi đăng nhập)
 export async function loadStatsStart() {
   try {
     const res = await api.get("/app-settings/stats-start");
@@ -26,36 +23,44 @@ export async function loadStatsStart() {
   return _statsStart;
 }
 
-// Lấy mốc hiện tại (đồng bộ — dùng sau khi đã loadStatsStart)
 export function getStatsStart() {
   return _statsStart;
 }
 
-// Lưu mốc mới — gọi từ trang Settings
 export async function saveStatsStart(month, year) {
   await api.post("/app-settings/stats-start", { month, year });
   _statsStart = { month, year, loaded: true };
 }
 
-// Danh sách tháng từ mốc đã lưu đến hiện tại (mới nhất trước)
 export function getRecentMonths() {
   const { month: startMonth, year: startYear } = _statsStart;
   const months = [];
   let cur = dayjs();
 
-  while (
-    cur.year() > startYear ||
-    (cur.year() === startYear && cur.month() + 1 >= startMonth)
-  ) {
+  // FIX: thêm giới hạn tối đa 120 tháng (10 năm) để tránh loop vô hạn
+  // nếu startYear lớn hơn năm hiện tại do lỗi dữ liệu
+  const MAX_MONTHS = 120;
+  let count = 0;
+
+  while (count < MAX_MONTHS) {
+    const curMonth = cur.month() + 1;
+    const curYear = cur.year();
+
+    // Dừng khi đã vượt qua mốc bắt đầu
+    if (curYear < startYear || (curYear === startYear && curMonth < startMonth))
+      break;
+
     months.push({
-      month: cur.month() + 1,
-      year: cur.year(),
-      label: `T${cur.month() + 1}/${cur.year()}`,
+      month: curMonth,
+      year: curYear,
+      label: `T${curMonth}/${curYear}`,
     });
+
     cur = cur.subtract(1, "month");
+    count++;
   }
 
-  // Luôn có ít nhất tháng hiện tại để tránh dropdown trống
+  // Luôn có ít nhất tháng hiện tại
   if (months.length === 0) {
     const now = dayjs();
     months.push({
@@ -68,42 +73,38 @@ export function getRecentMonths() {
   return months;
 }
 
-// Danh sách năm có dữ liệu (từ năm mốc đến năm hiện tại)
 export function getYears() {
   const { year: startYear } = _statsStart;
   const now = dayjs().year();
+
+  // FIX: nếu startYear > now (dữ liệu lỗi) thì chỉ trả năm hiện tại
+  const from = Math.min(startYear, now);
   const years = [];
-  for (let y = now; y >= startYear; y--) years.push(y);
+  for (let y = now; y >= from; y--) years.push(y);
   if (years.length === 0) years.push(now);
   return years;
 }
 
-// Tháng và năm hiện tại
 export function currentMonthYear() {
   return { month: dayjs().month() + 1, year: dayjs().year() };
 }
 
-// Hôm nay dạng YYYY-MM-DD
 export function today() {
   return dayjs().format("YYYY-MM-DD");
 }
 
-// "15/08/2026"
 export function formatDate(date) {
   return dayjs(date).format("DD/MM/YYYY");
 }
 
-// "15/08"
 export function formatShortDate(date) {
   return dayjs(date).format("DD/MM");
 }
 
-// "Tháng 8/2026"
 export function formatMonth(month, year) {
   return `Tháng ${month}/${year}`;
 }
 
-// Tên thứ: "Thứ 2", "Chủ nhật"
 export function getDayName(date) {
   const names = [
     "Chủ nhật",

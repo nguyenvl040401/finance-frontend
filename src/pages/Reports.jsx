@@ -9,43 +9,33 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 import api from "../api/axios";
 import { formatVND, formatShort } from "../utils/currency";
 import {
   formatDate,
-  formatShortDate,
-  getDayName,
   currentMonthYear,
   getYears,
   getStatsStart,
 } from "../utils/dateUtils";
+// FIX: dùng constants thay vì hardcode hex + hardcode array tháng
+import { CHART_COLORS, MONTH_LABELS } from "../utils/constants";
 
-const C_INCOME = "#10B981";
-const C_EXPENSE = "#F43F5E";
-
-// ─── 3 cấp xem: year → month → day ──────────────────────────────────────────
-// year:  BarChart 12 tháng → tap bar → vào month
-// month: BarChart từng ngày → tap bar → vào day
-// day:   Danh sách giao dịch ngày đó
+const C_INCOME = CHART_COLORS.INCOME;
+const C_EXPENSE = CHART_COLORS.EXPENSE;
 
 export default function Reports() {
   const { year: curYear } = currentMonthYear();
   const years = getYears();
 
-  // State máy cấp độ
   const [level, setLevel] = useState("year");
   const [selYear, setSelYear] = useState(curYear);
-  const [selMonth, setSelMonth] = useState(null); // số 1-12
-  const [selDay, setSelDay] = useState(null); // 'YYYY-MM-DD'
-
-  // Dữ liệu
+  const [selMonth, setSelMonth] = useState(null);
+  const [selDay, setSelDay] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [dayTxs, setDayTxs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Tải dữ liệu theo cấp độ hiện tại
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -55,14 +45,13 @@ export default function Reports() {
             params: { year: selYear },
           });
           const data = res.data.data ?? [];
-          // Lọc theo mốc thống kê đã lưu trong Settings (không hardcode 2026 nữa)
           const { month: startMonth, year: startYear } = getStatsStart();
           setChartData(
             selYear === startYear
-              ? data.filter((_, i) => i >= startMonth - 1) // index 0 = tháng 1
+              ? data.filter((_, i) => i >= startMonth - 1)
               : selYear > startYear
-                ? data // năm sau mốc → hiện đủ 12 tháng
-                : [], // năm trước mốc → không hiện gì
+                ? data
+                : [],
           );
         } else if (level === "month") {
           const res = await api.get("/reports/by-day", {
@@ -84,31 +73,17 @@ export default function Reports() {
     load();
   }, [level, selYear, selMonth, selDay]);
 
-  // Xử lý tap vào cột bar chart → drill down
   const handleBarClick = (data) => {
     if (!data) return;
     if (level === "year") {
-      // data.month = "T8", "T9"... → map sang số
-      const idx = [
-        "T1",
-        "T2",
-        "T3",
-        "T4",
-        "T5",
-        "T6",
-        "T7",
-        "T8",
-        "T9",
-        "T10",
-        "T11",
-        "T12",
-      ].indexOf(data.month);
+      // FIX: dùng MONTH_LABELS.indexOf() thay vì hardcode array inline
+      // MONTH_LABELS = ['T1','T2',...,'T12'] từ constants.js
+      const idx = MONTH_LABELS.indexOf(data.month);
       if (idx !== -1) {
         setSelMonth(idx + 1);
         setLevel("month");
       }
     } else if (level === "month") {
-      // data.date = "2026-08-15"
       if (data.date) {
         setSelDay(data.date);
         setLevel("day");
@@ -116,20 +91,17 @@ export default function Reports() {
     }
   };
 
-  // Tổng thu/chi từ chartData (không áp dụng cho level=day)
   const totalIncome = chartData.reduce((s, d) => s + (d.income ?? 0), 0);
   const totalExpense = chartData.reduce((s, d) => s + (d.expense ?? 0), 0);
   const balance = totalIncome - totalExpense;
 
-  // Label trục X
   const xKey = level === "year" ? "month" : "date";
   const formatX = (val) => {
-    if (level === "year") return val; // "T8", "T9"...
-    if (level === "month") return val?.slice(8) ?? val; // "15", "16"...
+    if (level === "year") return val;
+    if (level === "month") return val?.slice(8) ?? val;
     return val;
   };
 
-  // Tiêu đề động theo cấp
   const levelTitle = () => {
     if (level === "year") return `Năm ${selYear}`;
     if (level === "month") return `Tháng ${selMonth}/${selYear}`;
@@ -138,7 +110,6 @@ export default function Reports() {
 
   return (
     <div className="px-4 pt-5 pb-6 space-y-4 animate-fade-up">
-      {/* Header + nút back */}
       <div className="flex items-center gap-3">
         {level !== "year" && (
           <button
@@ -177,7 +148,6 @@ export default function Reports() {
           </h1>
         </div>
 
-        {/* Chọn năm (chỉ hiện ở cấp year) */}
         {level === "year" && (
           <select
             value={selYear}
@@ -194,7 +164,6 @@ export default function Reports() {
         )}
       </div>
 
-      {/* ─── Level: day — Danh sách giao dịch ─── */}
       {level === "day" ? (
         loading ? (
           <Spinner />
@@ -202,9 +171,7 @@ export default function Reports() {
           <DayTransactions transactions={dayTxs} date={selDay} />
         )
       ) : (
-        /* ─── Level: year / month — Biểu đồ ─── */
         <>
-          {/* Summary cards */}
           <div className="grid grid-cols-3 gap-2">
             <SummaryCard
               label="Tổng thu"
@@ -240,7 +207,6 @@ export default function Reports() {
             </div>
           ) : (
             <>
-              {/* Bar Chart — clickable */}
               <div className="card">
                 <p className="mb-1 text-xs font-semibold tracking-wider uppercase text-slate-500">
                   Thu & Chi
@@ -302,8 +268,6 @@ export default function Reports() {
                     />
                   </BarChart>
                 </ResponsiveContainer>
-
-                {/* Gợi ý tap */}
                 {level === "year" && (
                   <p className="text-[10px] text-slate-700 text-center mt-2">
                     ↑ Tap vào tháng để xem từng ngày
@@ -311,7 +275,6 @@ export default function Reports() {
                 )}
               </div>
 
-              {/* Line Chart — xu hướng */}
               <div className="card">
                 <p className="mb-4 text-xs font-semibold tracking-wider uppercase text-slate-500">
                   Xu hướng
@@ -370,7 +333,6 @@ export default function Reports() {
                 </div>
               </div>
 
-              {/* Bảng chi tiết */}
               <div className="card">
                 <p className="mb-3 text-xs font-semibold tracking-wider uppercase text-slate-500">
                   Chi tiết
@@ -428,7 +390,6 @@ export default function Reports() {
   );
 }
 
-// ─── Danh sách giao dịch trong ngày (level=day) ───────────────────────────────
 function DayTransactions({ transactions, date }) {
   const totalIncome = transactions
     .filter((t) => t.type === "income")
@@ -451,7 +412,6 @@ function DayTransactions({ transactions, date }) {
 
   return (
     <div className="space-y-3">
-      {/* Tổng kết ngày */}
       <div className="grid grid-cols-3 gap-2">
         <SummaryCard
           label="Thu"
@@ -477,8 +437,6 @@ function DayTransactions({ transactions, date }) {
           prefix={balance >= 0 ? "+" : "-"}
         />
       </div>
-
-      {/* Danh sách giao dịch */}
       <div className="card p-0 overflow-hidden divide-y divide-white/[0.04]">
         {transactions.map((tx) => (
           <div key={tx.id} className="flex items-center gap-3 px-4 py-3.5">
@@ -520,7 +478,6 @@ function DayTransactions({ transactions, date }) {
   );
 }
 
-// ─── Components phụ ──────────────────────────────────────────────────────────
 function SummaryCard({ label, value, color, bg, prefix = "" }) {
   return (
     <div className={`border rounded-xl p-3 ${bg}`}>

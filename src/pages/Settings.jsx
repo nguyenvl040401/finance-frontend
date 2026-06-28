@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { useProfile } from "../context/ProfileContext";
 import { formatVND, formatJPY } from "../utils/currency";
-import { getStatsStart, saveStatsStart } from "../utils/dateUtils";
+import { getStatsStart, saveStatsStart, getYears } from "../utils/dateUtils";
+import { PIN_LENGTH, CURRENCIES, AVATAR_EMOJIS } from "../utils/constants";
 
 export default function Settings() {
   const { logout } = useAuth();
+  const { profile, updateProfile } = useProfile();
   const [rate, setRate] = useState(null);
   const [rateLoading, setRateLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +43,12 @@ export default function Settings() {
     <div className="px-4 pt-5 pb-8 space-y-6 animate-fade-up">
       <h1 className="text-xl font-bold text-white">Cài đặt</h1>
 
-      {/* Bảo mật */}
+      {/* #11 #12: Cá nhân hóa — tên, avatar, tiền tệ mặc định */}
+      <section className="space-y-2">
+        <p className="section-label">Cá nhân hóa</p>
+        <PersonalizeForm profile={profile} onUpdate={updateProfile} />
+      </section>
+
       <section className="space-y-2">
         <p className="section-label">Bảo mật</p>
         <div className="p-0 overflow-hidden card">
@@ -48,7 +56,6 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* MỚI: Mốc thống kê — cấu hình được, không còn hardcode */}
       <section className="space-y-2">
         <p className="section-label">Thống kê</p>
         <div className="p-0 overflow-hidden card">
@@ -56,7 +63,6 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Tỷ giá */}
       <section className="space-y-2">
         <p className="section-label">Tỷ giá tiền tệ</p>
         <div className="space-y-4 card">
@@ -78,7 +84,6 @@ export default function Settings() {
                   unit="¥ JPY"
                 />
               </div>
-
               <div className="bg-[#0d1424] rounded-xl p-3.5">
                 <p className="text-[11px] text-slate-600 font-medium uppercase tracking-wider mb-3">
                   Bảng quy đổi nhanh
@@ -100,7 +105,6 @@ export default function Settings() {
                   ))}
                 </div>
               </div>
-
               <div className="flex items-center justify-between">
                 <p className="text-[11px] text-slate-600">
                   {rate.last_updated
@@ -110,8 +114,7 @@ export default function Settings() {
                 <button
                   onClick={refreshRate}
                   disabled={refreshing}
-                  className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium
-                             hover:text-emerald-300 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium hover:text-emerald-300 disabled:opacity-50 transition-colors"
                 >
                   <span
                     className={`text-base ${refreshing ? "animate-spin" : ""}`}
@@ -130,7 +133,6 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Thông tin ứng dụng */}
       <section className="space-y-2">
         <p className="section-label">Ứng dụng</p>
         <div className="p-0 overflow-hidden card">
@@ -143,7 +145,6 @@ export default function Settings() {
       <button onClick={handleLogout} className="btn-danger">
         Đăng xuất
       </button>
-
       <p className="text-center text-[11px] text-slate-700">
         Dữ liệu được lưu trữ an toàn trên server của bạn
       </p>
@@ -151,16 +152,136 @@ export default function Settings() {
   );
 }
 
-// MỚI: Form cấu hình mốc bắt đầu thống kê — lưu xuống DB qua API, không hardcode nữa
+// ── #11 + #12: Form cá nhân hóa ─────────────────────────────────────────────
+function PersonalizeForm({ profile, onUpdate }) {
+  const [displayName, setDisplayName] = useState(profile.display_name || "");
+  const [avatarEmoji, setAvatarEmoji] = useState(profile.avatar_emoji || "💰");
+  const [defaultCurrency, setDefaultCurrency] = useState(
+    profile.default_currency || CURRENCIES.VND,
+  );
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // Sync khi profile load từ API xong
+  useEffect(() => {
+    setDisplayName(profile.display_name || "");
+    setAvatarEmoji(profile.avatar_emoji || "💰");
+    setDefaultCurrency(profile.default_currency || CURRENCIES.VND);
+  }, [profile]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.post("/app-settings/profile", {
+        display_name: displayName.trim(),
+        avatar_emoji: avatarEmoji,
+        default_currency: defaultCurrency,
+      });
+      // Cập nhật context ngay — Dashboard thấy ngay không cần reload
+      onUpdate({
+        display_name: displayName.trim(),
+        avatar_emoji: avatarEmoji,
+        default_currency: defaultCurrency,
+      });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch {
+      alert("Lưu thất bại. Thử lại.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5 card">
+      {/* Avatar */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-slate-500">Avatar</p>
+        <div className="flex flex-wrap gap-2">
+          {AVATAR_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => setAvatarEmoji(emoji)}
+              className={`w-10 h-10 rounded-xl text-lg transition-all ${
+                avatarEmoji === emoji
+                  ? "bg-emerald-500/20 border border-emerald-500/50 scale-110"
+                  : "bg-white/[0.06] border border-transparent hover:bg-white/10"
+              }`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tên hiển thị */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-slate-500">Tên hiển thị</p>
+        <input
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder='VD: "Minh", "Lang"...'
+          maxLength={20}
+          className="input-field"
+        />
+        {displayName.trim() && (
+          <p className="text-[11px] text-white/40">
+            Dashboard hiện:{" "}
+            <span className="text-white/70">
+              {avatarEmoji} Ví của {displayName.trim()}
+            </span>
+          </p>
+        )}
+      </div>
+
+      {/* #12: Tiền tệ mặc định */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-slate-500">Tiền tệ mặc định</p>
+        <p className="text-[11px] text-slate-600">
+          Form ghi chi tiêu và nhập thu nhập sẽ mặc định chọn tiền tệ này
+        </p>
+        <div className="flex gap-2">
+          {[CURRENCIES.VND, CURRENCIES.JPY].map((cur) => (
+            <button
+              key={cur}
+              onClick={() => setDefaultCurrency(cur)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                defaultCurrency === cur
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                  : "bg-white/[0.06] border-transparent text-white/60 hover:bg-white/10"
+              }`}
+            >
+              {cur === CURRENCIES.VND ? "VND ₫" : "JPY ¥"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 btn-primary"
+        >
+          {saving ? "Đang lưu..." : "Lưu"}
+        </button>
+        {success && (
+          <p className="text-xs font-medium text-emerald-400">✓ Đã lưu!</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StatsStartForm() {
   const [month, setMonth] = useState(1);
-  const [year, setYear] = useState(2026);
+  const [year, setYear] = useState(new Date().getFullYear());
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [loaded, setLoaded] = useState(false);
 
-  // Load giá trị hiện tại khi mở rộng form lần đầu
   useEffect(() => {
     const cur = getStatsStart();
     setMonth(cur.month);
@@ -169,7 +290,7 @@ function StatsStartForm() {
   }, []);
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
-  const yearOptions = [2024, 2025, 2026, 2027, 2028];
+  const yearOptions = getYears();
 
   const handleSave = async () => {
     setSaving(true);
@@ -177,7 +298,7 @@ function StatsStartForm() {
     try {
       await saveStatsStart(month, year);
       setSuccess("Đã lưu! Tải lại trang để áp dụng cho Báo cáo.");
-    } catch (e) {
+    } catch {
       alert("Không thể lưu. Vui lòng thử lại.");
     } finally {
       setSaving(false);
@@ -185,7 +306,6 @@ function StatsStartForm() {
   };
 
   if (!loaded) return null;
-
   const current = getStatsStart();
 
   return (
@@ -229,14 +349,12 @@ function StatsStartForm() {
           />
         </svg>
       </button>
-
       {expanded && (
         <div className="px-4 pb-4 pt-2 space-y-3 border-t border-white/[0.04]">
           <p className="text-[11px] text-slate-500 leading-relaxed">
             Trang Báo cáo và các dropdown chọn tháng sẽ chỉ hiển thị dữ liệu từ
             mốc này trở đi.
           </p>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] text-slate-500 font-medium mb-1.5">
@@ -271,11 +389,9 @@ function StatsStartForm() {
               </select>
             </div>
           </div>
-
           {success && (
             <p className="text-xs font-medium text-emerald-400">{success}</p>
           )}
-
           <button
             onClick={handleSave}
             disabled={saving}
@@ -285,28 +401,6 @@ function StatsStartForm() {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function RateBox({ label, value, unit }) {
-  return (
-    <div className="bg-[#0d1424] rounded-xl p-3.5 text-center">
-      <p className="text-[11px] text-slate-600 mb-1.5">{label}</p>
-      <p className="font-mono text-lg font-bold leading-tight text-emerald-400">
-        {value}
-      </p>
-      <p className="text-[10px] text-slate-700 mt-1">{unit}</p>
-    </div>
-  );
-}
-
-function InfoRow({ icon, label, value }) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.04] last:border-0">
-      <span className="flex-shrink-0 w-6 text-lg text-center">{icon}</span>
-      <p className="flex-1 text-sm text-slate-300">{label}</p>
-      <p className="text-sm text-slate-600">{value}</p>
     </div>
   );
 }
@@ -325,7 +419,8 @@ function ChangePinForm() {
     setSuccess("");
     if (!currentPin || !newPin || !confirmPin)
       return setError("Vui lòng điền đầy đủ.");
-    if (newPin.length < 4) return setError("PIN mới phải có ít nhất 4 số.");
+    if (newPin.length !== PIN_LENGTH)
+      return setError(`PIN mới phải đúng ${PIN_LENGTH} số.`);
     if (newPin !== confirmPin) return setError("PIN xác nhận không khớp.");
     setSaving(true);
     try {
@@ -389,7 +484,6 @@ function ChangePinForm() {
           />
         </svg>
       </button>
-
       {expanded && (
         <div className="px-4 pb-4 pt-2 space-y-3 border-t border-white/[0.04]">
           <PinInput
@@ -402,7 +496,7 @@ function ChangePinForm() {
             label="PIN mới"
             value={newPin}
             onChange={setNewPin}
-            placeholder="Tối thiểu 4 số"
+            placeholder={`Đúng ${PIN_LENGTH} số`}
           />
           <PinInput
             label="Xác nhận PIN mới"
@@ -410,14 +504,12 @@ function ChangePinForm() {
             onChange={setConfirmPin}
             placeholder="Nhập lại PIN mới"
           />
-
           {error && (
             <p className="text-xs font-medium text-rose-400">{error}</p>
           )}
           {success && (
             <p className="text-xs font-medium text-emerald-400">{success}</p>
           )}
-
           <button
             onClick={handleSubmit}
             disabled={saving}
@@ -441,9 +533,31 @@ function PinInput({ label, value, onChange, placeholder }) {
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
         placeholder={placeholder}
-        maxLength={8}
+        maxLength={PIN_LENGTH}
         className="input-field font-mono tracking-[0.3em] text-sm"
       />
+    </div>
+  );
+}
+
+function RateBox({ label, value, unit }) {
+  return (
+    <div className="bg-[#0d1424] rounded-xl p-3.5 text-center">
+      <p className="text-[11px] text-slate-600 mb-1.5">{label}</p>
+      <p className="font-mono text-lg font-bold leading-tight text-emerald-400">
+        {value}
+      </p>
+      <p className="text-[10px] text-slate-700 mt-1">{unit}</p>
+    </div>
+  );
+}
+
+function InfoRow({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.04] last:border-0">
+      <span className="flex-shrink-0 w-6 text-lg text-center">{icon}</span>
+      <p className="flex-1 text-sm text-slate-300">{label}</p>
+      <p className="text-sm text-slate-600">{value}</p>
     </div>
   );
 }

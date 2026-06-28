@@ -5,9 +5,13 @@ import Modal from "../components/ui/Modal";
 import AmountInput from "../components/ui/AmountInput";
 import { formatVND, formatJPY, formatShort } from "../utils/currency";
 import { formatDate, today, currentMonthYear } from "../utils/dateUtils";
+import { useProfile } from "../context/ProfileContext";
+import { CURRENCIES } from "../utils/constants";
 
 export default function Dashboard() {
   const { month, year } = currentMonthYear();
+  // #11 #12: lấy profile (tên, avatar, tiền tệ mặc định)
+  const { profile } = useProfile();
 
   const [summary, setSummary] = useState(null);
   const [budgets, setBudgets] = useState([]);
@@ -42,7 +46,17 @@ export default function Dashboard() {
     reload().finally(() => setLoading(false));
   }, [reload]);
 
-  if (loading) return <Skeleton />;
+  if (loading) {
+    // Inline skeleton giữ nguyên như code gốc — nhẹ hơn import Skeletons
+    return (
+      <div className="px-4 pt-5 pb-6 space-y-4 animate-pulse">
+        <div className="h-6 w-32 bg-white/[0.06] rounded-lg" />
+        <div className="h-56 bg-white/[0.04] rounded-2xl" />
+        <div className="h-36 bg-white/[0.04] rounded-2xl" />
+        <div className="h-40 bg-white/[0.04] rounded-2xl" />
+      </div>
+    );
+  }
 
   const walletTotal = summary?.total_income_vnd ?? 0;
   const spent = summary?.total_expense_vnd ?? 0;
@@ -56,8 +70,12 @@ export default function Dashboard() {
     (s, b) => s + (b.budget?.amount ?? 0),
     0,
   );
-  // Số tiền trong ví CHƯA được gán cho bất kỳ danh mục nào — đây là số quan trọng người dùng cần thấy ngay
   const unallocated = walletTotal - totalAllocated;
+
+  // #11: tên hiển thị ở header
+  const walletTitle = profile.display_name
+    ? `${profile.avatar_emoji} Ví của ${profile.display_name}`
+    : "Ví của tôi";
 
   return (
     <div className="px-4 pt-5 pb-6 space-y-4 animate-fade-up">
@@ -67,7 +85,8 @@ export default function Dashboard() {
           <p className="text-xs font-medium text-slate-500">
             Tháng {month}/{year}
           </p>
-          <h1 className="text-xl font-bold text-white mt-0.5">Ví của tôi</h1>
+          {/* #11: hiển thị tên + avatar nếu đã cài đặt */}
+          <h1 className="text-xl font-bold text-white mt-0.5">{walletTitle}</h1>
         </div>
         <div className="flex items-center gap-2">
           {rate && (
@@ -102,10 +121,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ===== HERO — VÍ THÁNG ===== */}
+      {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0d1f35] to-[#111827] border border-white/[0.08] p-5">
         <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none bg-emerald-500/5 blur-2xl" />
-
         <p className="mb-1 text-xs font-medium text-slate-500">Ví tháng này</p>
         <p className="font-mono text-4xl font-bold tracking-tight text-emerald-400">
           {formatVND(walletTotal)}
@@ -132,7 +150,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Thanh đã chi / còn lại */}
         <div className="mt-4 mb-1">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] text-slate-500">
@@ -156,7 +173,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Còn lại trong ví / Đã chi — đảo vị trí theo yêu cầu: Còn lại bên TRÁI, Đã chi bên PHẢI */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div
             className={`border rounded-xl p-3 ${
@@ -190,9 +206,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* MỚI: Số tiền CHƯA được phân bổ cho danh mục nào — khác với "Còn lại" ở trên
-            "Còn lại" = ví - đã chi thực tế
-            "Chưa phân bổ" = ví - tổng các hạn mức đã đặt (kể cả chưa xài tới) */}
         {walletTotal > 0 && (
           <div className="mt-3 flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
             <div className="flex items-center gap-1.5">
@@ -222,14 +235,13 @@ export default function Dashboard() {
                     : "text-slate-600"
               }`}
             >
-              {unallocated < 0 ? "" : ""}
               {formatVND(unallocated)}
             </span>
           </div>
         )}
       </div>
 
-      {/* ===== PHÂN BỔ ===== */}
+      {/* Phân bổ */}
       {budgetsWithData.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-3">
@@ -243,7 +255,6 @@ export default function Dashboard() {
               Quản lý
             </Link>
           </div>
-
           {walletTotal > 0 && (
             <div className="flex items-center justify-between mb-3 px-0.5">
               <span className="text-[11px] text-slate-600">
@@ -264,7 +275,6 @@ export default function Dashboard() {
               )}
             </div>
           )}
-
           <div className="space-y-4">
             {budgetsWithData.slice(0, 5).map((item) => (
               <BudgetBar key={item.category.id} item={item} />
@@ -273,10 +283,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ===== GHI NHANH ===== */}
-      <QuickAdd categories={categories} rate={rate} onSaved={reload} />
+      {/* #12: truyền defaultCurrency xuống QuickAdd */}
+      <QuickAdd
+        categories={categories}
+        rate={rate}
+        onSaved={reload}
+        defaultCurrency={profile.default_currency}
+      />
 
-      {/* ===== CHI NHIỀU NHẤT ===== */}
       {summary?.expense_by_category?.length > 0 && (
         <div className="card">
           <h2 className="mb-3 text-sm font-semibold text-white">
@@ -319,7 +333,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ===== GIAO DỊCH GẦN ĐÂY ===== */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-white">
@@ -356,6 +369,7 @@ export default function Dashboard() {
         <IncomeForm
           categories={categories}
           rate={rate}
+          defaultCurrency={profile.default_currency}
           onSaved={() => {
             setShowIncomeModal(false);
             reload();
@@ -366,13 +380,19 @@ export default function Dashboard() {
   );
 }
 
-// ─── Ghi nhanh chi tiêu ngay Dashboard ───────────────────────────────────────
-function QuickAdd({ categories, rate, onSaved }) {
+// #12: nhận defaultCurrency từ profile
+function QuickAdd({ categories, rate, onSaved, defaultCurrency }) {
   const [selCat, setSelCat] = useState(null);
   const [amount, setAmount] = useState(0);
-  const [currency, setCurrency] = useState("VND");
+  // #12: default từ profile thay vì hardcode "VND"
+  const [currency, setCurrency] = useState(defaultCurrency || CURRENCIES.VND);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Cập nhật currency khi profile load xong (lần đầu profile có thể chưa sẵn)
+  useEffect(() => {
+    if (defaultCurrency) setCurrency(defaultCurrency);
+  }, [defaultCurrency]);
 
   const topCats = (categories.expense ?? []).slice(0, 6);
 
@@ -443,7 +463,7 @@ function QuickAdd({ categories, rate, onSaved }) {
               onEnter={handleSave}
             />
             <div className="flex bg-[#0d1424] rounded-full p-0.5 border border-white/[0.06] flex-shrink-0">
-              {["VND", "JPY"].map((cur) => (
+              {[CURRENCIES.VND, CURRENCIES.JPY].map((cur) => (
                 <button
                   key={cur}
                   onClick={() => setCurrency(cur)}
@@ -453,7 +473,7 @@ function QuickAdd({ categories, rate, onSaved }) {
                       : "text-slate-500"
                   }`}
                 >
-                  {cur === "VND" ? "₫" : "¥"}
+                  {cur === CURRENCIES.VND ? "₫" : "¥"}
                 </button>
               ))}
             </div>
@@ -467,7 +487,7 @@ function QuickAdd({ categories, rate, onSaved }) {
           </div>
           {rate && amount > 0 && (
             <p className="text-[11px] text-slate-600 pl-1">
-              {currency === "JPY"
+              {currency === CURRENCIES.JPY
                 ? `≈ ${formatVND(amount * rate.jpy_to_vnd)}`
                 : `≈ ${formatJPY(amount * rate.vnd_to_jpy)}`}
             </p>
@@ -482,19 +502,23 @@ function QuickAdd({ categories, rate, onSaved }) {
   );
 }
 
-// ─── Form nhập thu nhập vào ví ───────────────────────────────────────────────
-function IncomeForm({ categories, rate, onSaved }) {
+// #12: nhận defaultCurrency
+function IncomeForm({ categories, rate, defaultCurrency, onSaved }) {
   const [catId, setCatId] = useState(categories.income?.[0]?.id ?? "");
   const [amount, setAmount] = useState(0);
-  const [currency, setCurrency] = useState("VND");
+  const [currency, setCurrency] = useState(defaultCurrency || CURRENCIES.VND);
   const [note, setNote] = useState("");
   const [date, setDate] = useState(today());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (defaultCurrency) setCurrency(defaultCurrency);
+  }, [defaultCurrency]);
+
   const preview = () => {
-    if (!amount || !rate) return null;
-    return currency === "JPY"
+    if (!amount || !rate || amount <= 0) return null;
+    return currency === CURRENCIES.JPY
       ? `≈ ${formatVND(amount * rate.jpy_to_vnd)}`
       : `≈ ${formatJPY(amount * rate.vnd_to_jpy)}`;
   };
@@ -524,7 +548,6 @@ function IncomeForm({ categories, rate, onSaved }) {
 
   return (
     <div className="space-y-5">
-      {/* Loại thu nhập */}
       <div>
         <p className="mb-3 text-xs font-medium text-slate-500">Loại thu nhập</p>
         <div className="grid grid-cols-3 gap-2">
@@ -547,12 +570,11 @@ function IncomeForm({ categories, rate, onSaved }) {
         </div>
       </div>
 
-      {/* Số tiền — đã format khi gõ + nút tăng giảm */}
       <div>
         <div className="flex items-center justify-between mb-2.5">
           <p className="text-xs font-medium text-slate-500">Số tiền</p>
           <div className="flex bg-[#0d1424] rounded-full p-0.5 border border-white/[0.06]">
-            {["VND", "JPY"].map((cur) => (
+            {[CURRENCIES.VND, CURRENCIES.JPY].map((cur) => (
               <button
                 key={cur}
                 onClick={() => setCurrency(cur)}
@@ -562,7 +584,7 @@ function IncomeForm({ categories, rate, onSaved }) {
                     : "text-slate-500"
                 }`}
               >
-                {cur === "VND" ? "₫ VND" : "¥ JPY"}
+                {cur === CURRENCIES.VND ? "₫ VND" : "¥ JPY"}
               </button>
             ))}
           </div>
@@ -597,7 +619,6 @@ function IncomeForm({ categories, rate, onSaved }) {
 
       {error && <p className="text-sm font-medium text-rose-400">{error}</p>}
 
-      {/* Nút lưu — luôn nằm trong vùng cuộn của Modal, không bị che */}
       <button onClick={handleSave} disabled={saving} className="btn-primary">
         {saving ? "Đang lưu..." : "💰 Nhập vào ví"}
       </button>
@@ -605,7 +626,6 @@ function IncomeForm({ categories, rate, onSaved }) {
   );
 }
 
-// ─── Thanh tiến độ ngân sách ─────────────────────────────────────────────────
 function BudgetBar({ item }) {
   const pct = item.percentage_used ?? 0;
   const isOver = pct >= 100;
@@ -655,7 +675,6 @@ function BudgetBar({ item }) {
   );
 }
 
-// ─── Hàng giao dịch ──────────────────────────────────────────────────────────
 function TxRow({ tx }) {
   return (
     <div className="flex items-center gap-3 px-1 py-2.5 rounded-xl hover:bg-white/[0.03] transition-colors">
@@ -681,18 +700,6 @@ function TxRow({ tx }) {
         {tx.type === "income" ? "+" : "-"}
         {formatVND(tx.amount_vnd)}
       </p>
-    </div>
-  );
-}
-
-// ─── Skeleton loading ─────────────────────────────────────────────────────────
-function Skeleton() {
-  return (
-    <div className="px-4 pt-5 pb-6 space-y-4 animate-pulse">
-      <div className="h-6 w-32 bg-white/[0.06] rounded-lg" />
-      <div className="h-56 bg-white/[0.04] rounded-2xl" />
-      <div className="h-36 bg-white/[0.04] rounded-2xl" />
-      <div className="h-40 bg-white/[0.04] rounded-2xl" />
     </div>
   );
 }
